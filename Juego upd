@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Whack-a-Skabeche Mejorado</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b);
+    margin: 0; padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    overflow-x: hidden;
+  }
+  #loginScreen, #gameScreen {
+    background: rgba(0,0,0,0.7);
+    border-radius: 20px;
+    padding: 25px 30px;
+    margin-top: 40px;
+    max-width: 650px;
+    width: 90%;
+    box-shadow: 0 0 15px #ff8c00;
+  }
+  #loginScreen {
+    text-align: center;
+  }
+  input {
+    padding: 12px 15px;
+    font-size: 18px;
+    border-radius: 10px;
+    border: none;
+    width: 90%;
+    margin-bottom: 15px;
+  }
+  button {
+    cursor: pointer;
+    font-size: 20px;
+    padding: 12px 30px;
+    border-radius: 12px;
+    border: none;
+    background: #ff8c00;
+    color: #222;
+    font-weight: bold;
+    box-shadow: 0 0 10px #ff8c00;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #ffa500;
+  }
+
+  #gameScreen { display: none; }
+  #playerName {
+    font-weight: 900;
+    font-size: 26px;
+    margin-bottom: 5px;
+  }
+  #scoreBoard {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-shadow: 0 0 8px #ffd700;
+  }
+
+  #livesDisplay {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #ff6347;
+    text-shadow: 0 0 5px #ff6347aa;
+  }
+
+  .holes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 15px;
+  }
+  .hole {
+    background: rgba(255 255 255 / 0.15);
+    border-radius: 35px 35px 50% 50% / 60% 60% 100% 100%;
+    width: 150px;
+    height: 160px;
+    position: relative;
+    overflow: visible;
+    cursor: pointer;
+    box-shadow: 0 0 10px #ffa500 inset;
+    transition: transform 0.15s ease;
+  }
+  .hole:active {
+    transform: scale(0.95);
+  }
+  .head {
+    width: 130px;
+    height: 130px;
+    border-radius: 40px 40px 60% 60% / 70% 70% 100% 100%;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    user-select: none;
+    filter: drop-shadow(0 4px 3px rgba(0,0,0,0.3));
+    transition: filter 0.25s ease;
+  }
+  .head:active {
+    filter: drop-shadow(0 0 15px #ff6);
+  }
+
+  #hammer {
+    position: fixed;
+    width: 60px;
+    pointer-events: none;
+    user-select: none;
+    transition: filter 0.3s ease;
+    filter: drop-shadow(0 0 5px #fff);
+    z-index: 1000;
+  }
+
+  .hit {
+    filter: drop-shadow(0 0 12px #ff4500) saturate(3) brightness(1.5);
+  }
+
+  #msgBalloon {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: linear-gradient(135deg, #ffa500, #ff4500);
+    padding: 20px 40px;
+    font-weight: 900;
+    font-size: 2.6rem;
+    border-radius: 40px;
+    color: white;
+    box-shadow: 0 0 25px #ff7f50;
+    opacity: 0;
+    user-select: none;
+    pointer-events: none;
+    text-shadow: 0 0 12px #fff7e6;
+    z-index: 2000;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  #msgBalloon.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+    animation: pop 0.7s ease forwards;
+  }
+  @keyframes pop {
+    0%   { transform: translate(-50%, -50%) scale(0.6); }
+    50%  { transform: translate(-50%, -50%) scale(1.4); }
+    100% { transform: translate(-50%, -50%) scale(1.2); }
+  }
+
+  #topScores {
+    margin-top: 25px;
+    text-align: left;
+    max-height: 220px;
+    overflow-y: auto;
+    border-radius: 15px;
+    background: rgba(0,0,0,0.3);
+    padding: 10px 15px;
+    box-shadow: 0 0 8px #ff8c00;
+  }
+  #topScores h3 {
+    margin: 0 0 10px 0;
+    color: #ffca28;
+    text-shadow: 0 0 6px #ffb300;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    color: white;
+    font-weight: 600;
+  }
+  th, td {
+    border-bottom: 1px solid #ffb300aa;
+    padding: 6px 8px;
+    text-align: center;
+  }
+  th {
+    background: #ff8c00dd;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>Whack-a-Skabeche Mejorado</h1>
+  <p>Ingresa tu nombre de usuario para empezar</p>
+  <input type="text" id="usernameInput" placeholder="Tu nombre de usuario" />
+  <button id="startBtn">Iniciar juego</button>
+  <p id="userRank" style="margin-top: 15px; font-weight: 700; font-size: 18px; color:#ffd700;"></p>
+</div>
+
+<div id="gameScreen">
+  <h2>Jugador: <span id="playerName"></span></h2>
+  <div id="scoreBoard">Puntaje: 0</div>
+  <div id="livesDisplay">Vidas: 3</div>
+
+  <div class="holes" id="holesContainer">
+    <div class="hole" data-index="0"></div>
+    <div class="hole" data-index="1"></div>
+    <div class="hole" data-index="2"></div>
+    <div class="hole" data-index="3"></div>
+    <div class="hole" data-index="4"></div>
+    <div class="hole" data-index="5"></div>
+  </div>
+  <button id="endGameBtn" style="margin-top:20px;">Terminar Juego</button>
+
+  <div id="topScores">
+    <h3>Top 10 jugadores</h3>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Jugador</th><th>Puntaje</th></tr>
+      </thead>
+      <tbody id="topScoresBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="msgBalloon"></div>
+
+<img id="hammer" src="https://i.imgur.com/fmWxYRx.png" alt="Martillo" style="display:none;" />
+
+<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+<audio id="specialSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+
+<script>
+  const holes = document.querySelectorAll('.hole');
+  const scoreBoard = document.getElementById('scoreBoard');
+  const playerNameElem = document.getElementById('playerName');
+  const topScoresBody = document.getElementById('topScoresBody');
+  const userRankDisplay = document.getElementById('userRank');
+  const hammerImg = document.getElementById('hammer');
+  const hitSound = document.getElementById('hitSound');
+  const specialSound = document.getElementById('specialSound');
+  const msgBalloon = document.getElementById('msgBalloon');
+  const livesDisplay = document.getElementById('livesDisplay');
+
+  const loginScreen = document.getElementById('loginScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const usernameInput = document.getElementById('usernameInput');
+  const startBtn = document.getElementById('startBtn');
+  const endGameBtn = document.getElementById('endGameBtn');
+
+  const characters = [
+    {
+      name: 'Bryan Skabeche',
+      img: 'https://i.pinimg.com/736x/b0/a3/48/b0a3487292f2af70b9acba70381d4cb5.jpg'
+    },
+    {
+      name: 'Carolina Díaz',
+      img: 'https://i.pinimg.com/736x/c6/71/4d/c6714d3bb5d1b4eaaec61a1b107b7d14.jpg'
+    }
+  ];
+
+  let currentScore = 0;
+  let username = '';
+  let gameInterval = null;
+  let popUpTime = 1400;
+  let lastHole = null;
+  let gameActive = false;
+  let lives = 3;
+
+  const specialMessages = [
+    "ASOMBROSO",
+    "INCREIBLE",
+    "ERES HUMANO",
+    "SE LO MERECEN",
+    "SERA QUE NOS REGAÑEN"
+  ];
+
+  window.addEventListener('mousemove', e => {
+    hammerImg.style.left = (e.pageX - 40) + 'px';
+    hammerImg.style.top = (e.pageY - 20) + 'px';
+  });
+
+  window.addEventListener('mousedown', () => {
+    hammerImg.classList.add('hit');
+  });
+  window.addEventListener('mouseup', () => {
+    hammerImg.classList.remove('hit');
+  });
+
+  function randomHole() {
+    const idx = Math.floor(Math.random() * holes.length);
+    if (idx === lastHole) return randomHole();
+    lastHole = idx;
+    return holes[idx];
+  }
+
+  function randomCharacter() {
+    return characters[Math.floor(Math.random() * characters.length)];
+  }
+
+  function showSpecialMessage(text) {
+    msgBalloon.textContent = text;
+    msgBalloon.classList.add('show');
+    specialSound.play();
+    setTimeout(() => {
+      msgBalloon.classList.remove('show');
+    }, 2000);
+  }
+
+  function updateLivesDisplay() {
+    livesDisplay.textContent = `Vidas: ${lives}`;
+  }
+
+  function showHead() {
+    if (!gameActive) return;
+    const hole = randomHole();
+    const char = randomCharacter();
+
+    const head = document.createElement('img');
+    head.src = char.img;
+    head.classList.add('head');
+    head.alt = char.name;
+    hole.appendChild(head);
+
+    let hit = false;
+
+    head.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!gameActive) return;
+
+      hit = true;
+      currentScore++;
+      scoreBoard.textContent = `Puntaje: ${currentScore}`;
+      hitSound.play();
+      hole.removeChild(head);
+
+      if (popUpTime > 500) popUpTime -= 15;
+
+      saveTopScore();
+
+      if (currentScore % 10 === 0) {
+        const msg = specialMessages[Math.floor(Math.random() * specialMessages.length)];
+        showSpecialMessage(msg);
+      }
+
+      updateUserRankDisplay();
+    });
+
+    setTimeout(() => {
+      if (hole.contains(head)) {
+        hole.removeChild(head);
+        if (!hit) {
+          lives--;
+          updateLivesDisplay();
+          if (lives <= 0) {
+            endGame();
+            alert('Juego terminado, perdiste las 3 vidas.');
+          }
+        }
+      }
+    }, popUpTime);
+  }
+
+  function showNextHeads() {
+    if (!gameActive) return;
+    showHead();
+    setTimeout(showNextHeads, popUpTime + 200);
+  }
+
+  function saveTopScore() {
+    if (!username) return;
+
+    let topScores = JSON.parse(localStorage.getItem('whackTopScores')) || [];
+    // Actualizar o añadir usuario
+    const existing = topScores.find(s => s.name === username);
+    if (existing) {
+      if (currentScore > existing.score) existing.score = currentScore;
+    } else {
+      topScores.push({name: username, score: currentScore});
+    }
+    // Ordenar descendente y recortar top 1000
+    topScores.sort((a,b) => b.score - a.score);
+    if (topScores.length > 1000) topScores.length = 1000;
+    localStorage.setItem('whackTopScores', JSON.stringify(topScores));
+  }
+
+  function loadTopScores() {
+    const topScores = JSON.parse(localStorage.getItem('whackTopScores')) || [];
+    topScoresBody.innerHTML = '';
+    const max = Math.min(10, topScores.length);
+    for(let i=0; i<max; i++) {
+      const row = document.createElement('tr');
+      const rankCell = document.createElement('td');
+      rankCell.textContent = i+1;
+      const nameCell = document.createElement('td');
+      nameCell.textContent = topScores[i].name;
+      const scoreCell = document.createElement('td');
+      scoreCell.textContent = topScores[i].score;
+      row.appendChild(rankCell);
+      row.appendChild(nameCell);
+      row.appendChild(scoreCell);
+      topScoresBody.appendChild(row);
+    }
+  }
+
+  function updateUserRankDisplay() {
+    if (!username) {
+      userRankDisplay.textContent = '';
+      return;
+    }
+    const topScores = JSON.parse(localStorage.getItem('whackTopScores')) || [];
+    const rank = topScores.findIndex(s => s.name === username);
+    if (rank >= 0) {
+      userRankDisplay.textContent = `Tu ranking actual es: #${rank + 1}`;
+    } else {
+      userRankDisplay.textContent = 'Aún no tienes ranking, ¡juega para entrar al Top!';
+    }
+  }
+
+  function startGame() {
+    username = usernameInput.value.trim();
+    if (!username) {
+      alert('Por favor ingresa un nombre de usuario');
+      return;
+    }
+    currentScore = 0;
+    lives = 3;
+    popUpTime = 1400;
+    lastHole = null;
+    gameActive = true;
+
+    playerNameElem.textContent = username;
+    scoreBoard.textContent = 'Puntaje: 0';
+    updateLivesDisplay();
+
+    loginScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+    hammerImg.style.display = 'block';
+
+    loadTopScores();
+    updateUserRankDisplay();
+    showNextHeads();
+  }
+
+  function endGame() {
+    gameActive = false;
+    hammerImg.style.display = 'none';
+    saveTopScore();
+    loadTopScores();
+    updateUserRankDisplay();
+
+    alert(`Juego terminado. Tu puntaje: ${currentScore}`);
+
+    loginScreen.style.display = 'block';
+    gameScreen.style.display = 'none';
+    usernameInput.value = '';
+  }
+
+  startBtn.addEventListener('click', startGame);
+  endGameBtn.addEventListener('click', () => {
+    if (gameActive) {
+      if (confirm('¿Seguro que quieres terminar el juego?')) {
+        endGame();
+      }
+    }
+  });
+
+</script>
+
+</body>
+</html>
