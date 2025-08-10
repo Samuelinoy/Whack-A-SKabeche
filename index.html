@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Whack-a-Skabeche Game</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+    margin: 0; padding: 0;
+    text-align: center;
+  }
+  #loginScreen, #gameScreen {
+    max-width: 600px;
+    margin: 50px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+  }
+  #gameScreen { display: none; }
+  .holes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 20px;
+  }
+  .hole {
+    width: 150px;
+    height: 150px;
+    background: #a0c4ff;
+    border-radius: 50%;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .head {
+    width: 120px;
+    height: 120px;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s;
+  }
+  .head:active {
+    transform: scale(0.9);
+  }
+  #scoreBoard {
+    font-size: 24px;
+    margin-top: 10px;
+  }
+  #topScores {
+    margin-top: 20px;
+    text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  #topScores h3 {
+    margin-bottom: 10px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table, th, td {
+    border: 1px solid #999;
+  }
+  th, td {
+    padding: 6px;
+    text-align: center;
+  }
+  #hammer {
+    width: 60px;
+    position: fixed;
+    pointer-events: none;
+    user-select: none;
+    z-index: 1000;
+  }
+  button {
+    font-size: 18px;
+    padding: 10px 20px;
+    margin-top: 15px;
+    cursor: pointer;
+    border-radius: 8px;
+    border: none;
+    background: #0077cc;
+    color: white;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #005fa3;
+  }
+  input {
+    font-size: 18px;
+    padding: 8px;
+    width: 80%;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <h1>Whack-a-Skabeche</h1>
+  <p>Ingresa tu nombre de usuario para empezar</p>
+  <input type="text" id="usernameInput" placeholder="Tu nombre de usuario" />
+  <button id="startBtn">Iniciar juego</button>
+</div>
+
+<div id="gameScreen">
+  <h2>Jugador: <span id="playerName"></span></h2>
+  <div id="scoreBoard">Puntaje: 0</div>
+  <div class="holes" id="holesContainer">
+    <!-- 6 huecos -->
+    <div class="hole" data-index="0"></div>
+    <div class="hole" data-index="1"></div>
+    <div class="hole" data-index="2"></div>
+    <div class="hole" data-index="3"></div>
+    <div class="hole" data-index="4"></div>
+    <div class="hole" data-index="5"></div>
+  </div>
+  <button id="endGameBtn">Terminar Juego</button>
+
+  <div id="topScores">
+    <h3>Top 10 jugadores</h3>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Jugador</th><th>Puntaje</th></tr>
+      </thead>
+      <tbody id="topScoresBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<img id="hammer" src="https://i.imgur.com/fmWxYRx.png" alt="Martillo" style="display:none;" />
+
+<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+
+<script>
+  const holes = document.querySelectorAll('.hole');
+  const scoreBoard = document.getElementById('scoreBoard');
+  const playerNameElem = document.getElementById('playerName');
+  const holesContainer = document.getElementById('holesContainer');
+  const topScoresBody = document.getElementById('topScoresBody');
+  const hammerImg = document.getElementById('hammer');
+  const hitSound = document.getElementById('hitSound');
+
+  const loginScreen = document.getElementById('loginScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const usernameInput = document.getElementById('usernameInput');
+  const startBtn = document.getElementById('startBtn');
+  const endGameBtn = document.getElementById('endGameBtn');
+
+  // Personajes (solo cabezas) (usa imágenes de buena calidad pero tamaño pequeño)
+  const characters = [
+    {name: 'Bryan Skabeche', img: 'https://i.imgur.com/QU3l6sn.png'}, // cabeza Bryan
+    {name: 'Carolina Díaz', img: 'https://i.imgur.com/dG4EcNw.png'}   // cabeza Carolina
+  ];
+
+  let currentScore = 0;
+  let username = '';
+  let gameInterval = null;
+  let popUpTime = 1500; // milisegundos que dura la cabeza visible
+  let lastHole = null;
+
+  // Manejador movimiento martillo con mouse
+  window.addEventListener('mousemove', e => {
+    hammerImg.style.left = e.pageX - 40 + 'px';
+    hammerImg.style.top = e.pageY - 20 + 'px';
+  });
+
+  // Mostrar cabeza en un hueco random
+  function randomHole() {
+    const idx = Math.floor(Math.random() * holes.length);
+    if (idx === lastHole) return randomHole();
+    lastHole = idx;
+    return holes[idx];
+  }
+
+  function randomCharacter() {
+    return characters[Math.floor(Math.random() * characters.length)];
+  }
+
+  // Muestra una cabeza en un hueco
+  function showHead() {
+    const hole = randomHole();
+    const char = randomCharacter();
+
+    const head = document.createElement('img');
+    head.src = char.img;
+    head.classList.add('head');
+    head.alt = char.name;
+    hole.appendChild(head);
+
+    // Al hacer click en cabeza
+    head.addEventListener('click', e => {
+      e.stopPropagation();
+      currentScore++;
+      scoreBoard.textContent = `Puntaje: ${currentScore}`;
+      hitSound.play();
+      hole.removeChild(head);
+      // acelerar con el tiempo (min 500ms)
+      if (popUpTime > 500) popUpTime -= 20;
+      saveScore();
+    });
+
+    // Remueve cabeza después del tiempo visible
+    setTimeout(() => {
+      if (hole.contains(head)) {
+        hole.removeChild(head);
+      }
+    }, popUpTime);
+  }
+
+  // Empieza el juego
+  function startGame() {
+    currentScore = 0;
+    scoreBoard.textContent = `Puntaje: ${currentScore}`;
+    hammerImg.style.display = 'block';
+    playerNameElem.textContent = username;
+
+    // Mostrar cabezas cada popUpTime ms
+    gameInterval = setInterval(showHead, popUpTime);
+
+    loginScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+    loadTopScores();
+  }
+
+  // Terminar juego
+  function endGame() {
+    clearInterval(gameInterval);
+    hammerImg.style.display = 'none';
+    alert(`Juego terminado! Tu puntaje fue: ${currentScore}`);
+    saveTopScore();
+    loadTopScores();
+    loginScreen.style.display = 'block';
+    gameScreen.style.display = 'none';
+  }
+
+  // Guardar puntaje en localStorage (por usuario)
+  function saveScore() {
+    localStorage.setItem(`score_${username}`, currentScore);
+  }
+
+  // Cargar top scores y mostrar
+  function loadTopScores() {
+    let scores = JSON.parse(localStorage.getItem('topScores') || '[]');
+    // ordenar desc
+    scores.sort((a,b) => b.score - a.score);
+    const top = scores.slice(0, 10);
+
+    topScoresBody.innerHTML = '';
+    top.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${idx+1}</td><td>${item.name}</td><td>${item.score}</td>`;
+      topScoresBody.appendChild(tr);
+    });
+  }
+
+  // Guardar el score actual en la tabla topScores localStorage
+  function saveTopScore() {
+    let scores = JSON.parse(localStorage.getItem('topScores') || '[]');
+
+    // buscar si ya existe y actualizar si es mayor
+    const existing = scores.find(s => s.name === username);
+    if (existing) {
+      if (currentScore > existing.score) {
+        existing.score = currentScore;
+      }
+    } else {
+      scores.push({name: username, score: currentScore});
+    }
+
+    // limitar a 1000 jugadores
+    if (scores.length > 1000) {
+      scores.sort((a,b) => b.score - a.score);
+      scores = scores.slice(0, 1000);
+    }
+
+    localStorage.setItem('topScores', JSON.stringify(scores));
+  }
+
+  startBtn.addEventListener('click', () => {
+    const name = usernameInput.value.trim();
+    if (name.length < 3) {
+      alert('Por favor ingresa un nombre de usuario de al menos 3 caracteres');
+      return;
+    }
+    username = name;
+    startGame();
+  });
+
+  endGameBtn.addEventListener('click', endGame);
+</script>
+
+</body>
+</html>
